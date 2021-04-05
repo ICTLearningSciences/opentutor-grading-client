@@ -88,6 +88,11 @@ export interface Hint {
   text: string;
 }
 
+export interface TrainDefaultJob {
+  id: string;
+  statusUrl: string;
+}
+
 export interface TrainJob {
   id: string;
   lesson: boolean;

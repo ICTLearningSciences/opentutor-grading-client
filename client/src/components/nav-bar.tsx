@@ -72,6 +72,14 @@ function NavMenu(): JSX.Element {
           <ListItemText primary="Users" />
         </ListItem>
       ) : undefined}
+      {userIsElevated(context.user) ? (
+        <ListItem button component={Link} to={withPrefix("/train_default")}>
+        <ListItemIcon>
+          <ListIcon />
+        </ListItemIcon>
+        <ListItemText primary="Train Default Model" />
+      </ListItem>
+      ) : undefined}
     </List>
   );
 }

@@ -14,6 +14,7 @@ import SessionsPage from "pages/sessions/index";
 import SessionPage from "pages/sessions/session";
 import UsersPage from "pages/users/index";
 import "styles/layout.css";
+import TrainDefaultPage from "./train_default";
 
 const IndexPage: React.FC = (props: any) => {
   return (
@@ -26,6 +27,7 @@ const IndexPage: React.FC = (props: any) => {
           <SessionPage path={withPrefix("sessions/session")} />
         </SessionsPage>
         <UsersPage path={withPrefix("users")} />
+        <TrainDefaultPage path={withPrefix("train_default")}/>
       </LoginMenu>
     </Router>
   );

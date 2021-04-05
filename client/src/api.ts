@@ -26,6 +26,7 @@ import {
   UserAccessToken,
   User,
   UserRole,
+  TrainDefaultJob,
 } from "types";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const urljoin = require("url-join");
@@ -379,6 +380,14 @@ export async function trainLesson(lessonId: string): Promise<TrainJob> {
     {
       lesson: lessonId,
     }
+  );
+  return res.data.data!;
+}
+
+export async function trainDefault() : Promise<TrainDefaultJob> {
+  const res = await axios.post<GQLResponse<TrainDefaultJob>>(
+    urljoin(CLASSIFIER_ENTRYPOINT, "train_default"),
+    {}
   );
   return res.data.data!;
 }
