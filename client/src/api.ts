@@ -4,7 +4,7 @@ Permission to use, copy, modify, and distribute this software and its documentat
 
 The full terms of this copyright and license should always be found in the root directory of this software deliverable as "license.txt" and if these terms are not found with this software, please contact the USC Stevens Center for the full license.
 */
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 import {
   DeleteLesson,
   DeleteSession,
@@ -40,7 +40,15 @@ interface GQLResponse<T> {
   data?: T;
 }
 
+function findOrThrow<T>(res: AxiosResponse<GQLResponse<T>>): T {
+  if (!res.data.data) {
+    throw new Error(`invalid result body: ${JSON.stringify(res.data)}`);
+  }
+  return res.data.data;
+}
+
 export async function fetchSessions(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
   filter: any,
   limit: number,
   cursor: string,
@@ -53,48 +61,54 @@ export async function fetchSessions(
     GRAPHQL_ENDPOINT,
     {
       query: `
-        query {
-          me {
-            sessions(
-              filter:"${encodeURI(JSON.stringify(filter))}"
-              limit:${limit},
-              cursor:"${cursor}",
-              sortBy:"${sortBy}",
-              sortAscending:${sortAscending}
-            ) {
-              edges {
-                cursor
-                node {
-                  username
-                  sessionId
-                  classifierGrade
-                  graderGrade
-                  createdAt
-                  lesson {
-                    name
-                    lessonId
-                    createdBy
-                  }
-                  lessonCreatedBy
-                  lastGradedByName
-                  lastGradedAt
+      query FetchSessions($filter: String!, $limit: Int!, $cursor: String!, $sortBy: String!, $sortAscending: Boolean!) {
+        me {
+          sessions(
+            filter: $filter,
+            limit: $limit,
+            cursor: $cursor,
+            sortBy: $sortBy,
+            sortAscending: $sortAscending
+          ) {
+            edges {
+              cursor
+              node {
+                username
+                sessionId
+                classifierGrade
+                graderGrade
+                createdAt
+                lesson {
+                  name
+                  lessonId
+                  createdBy
                 }
+                lessonCreatedBy
+                lastGradedByName
+                lastGradedAt
               }
-              pageInfo {
-                startCursor
-                endCursor
-                hasPreviousPage
-                hasNextPage
-              }
+            }
+            pageInfo {
+              startCursor
+              endCursor
+              hasPreviousPage
+              hasNextPage
             }
           }
         }
+      }
       `,
+      variables: {
+        filter: JSON.stringify(filter),
+        limit,
+        cursor,
+        sortBy,
+        sortAscending,
+      },
     },
     { headers: headers }
   );
-  // TODO: must handle errors including in tests
-  return result.data.data!.me.sessions;
+  return findOrThrow<FetchSessions>(result).me.sessions;
 }
 
 export async function fetchSession(
@@ -106,9 +120,9 @@ export async function fetchSession(
     GRAPHQL_ENDPOINT,
     {
       query: `
-      query {
+      query FetchSession($sessionId: String!) {
         me {
-          session(sessionId: "${sessionId}") {
+          session(sessionId: $sessionId) {
             username
             graderGrade
             createdAt
@@ -134,11 +148,11 @@ export async function fetchSession(
         }
       }
     `,
+      variables: { sessionId },
     },
     { headers: headers }
   );
-  // TODO: must handle errors including in tests
-  return result.data.data!.me.session;
+  return findOrThrow<FetchSession>(result).me.session;
 }
 
 export async function setGrade(
@@ -146,21 +160,20 @@ export async function setGrade(
   userAnswerIndex: number,
   userExpectationIndex: number,
   grade: string,
-  accessToken: string,
-  grader: string
+  accessToken: string
 ): Promise<Session> {
   const headers = { Authorization: `bearer ${accessToken}` };
   const result = await axios.post<GQLResponse<SetGrade>>(
     GRAPHQL_ENDPOINT,
     {
       query: `
-      mutation {
+      mutation SetGrade($sessionId: String!, $userAnswerIndex: Int!, $userExpectationIndex: Int!, $grade: String!){
         me {
           setGrade(
-            sessionId: "${sessionId}",
-            userAnswerIndex:${userAnswerIndex},
-            userExpectationIndex:${userExpectationIndex}
-            grade:"${grade}"
+            sessionId: $sessionId,
+            userAnswerIndex: $userAnswerIndex,
+            userExpectationIndex: $userExpectationIndex
+            grade: $grade
           ) {
             username
             graderGrade
@@ -187,14 +200,15 @@ export async function setGrade(
         }
       }
     `,
+      variables: { sessionId, userAnswerIndex, userExpectationIndex, grade },
     },
     { headers: headers }
   );
-  // TODO: must handle errors including in tests
-  return result.data.data!.me.setGrade;
+  return findOrThrow<SetGrade>(result).me.setGrade;
 }
 
 export async function fetchLessons(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
   filter: any,
   limit: number,
   cursor: string,
@@ -207,14 +221,20 @@ export async function fetchLessons(
     GRAPHQL_ENDPOINT,
     {
       query: `
-      query {
+      query FetchLessons(
+        $filter: String!
+        $limit: Int!,
+        $cursor: String!,
+        $sortBy: String!,
+        $sortAscending: Boolean!
+      ){
         me {
           lessons(
-            filter:"${encodeURI(JSON.stringify(filter))}"
-            limit:${limit},
-            cursor:"${cursor}",
-            sortBy:"${sortBy}",
-            sortAscending:${sortAscending}
+            filter: $filter,
+            limit: $limit,
+            cursor: $cursor,
+            sortBy: $sortBy,
+            sortAscending: $sortAscending
           ) {
             edges {
               cursor
@@ -235,12 +255,18 @@ export async function fetchLessons(
           }
         }
       }
-    `,
+      `,
+      variables: {
+        filter: JSON.stringify(filter),
+        limit: limit,
+        cursor: cursor,
+        sortBy: sortBy,
+        sortAscending: sortAscending,
+      },
     },
     { headers: headers }
   );
-  // TODO: must handle errors including in tests
-  return result.data.data!.me.lessons;
+  return findOrThrow<FetchLessons>(result).me.lessons;
 }
 
 export async function fetchLesson(
@@ -252,9 +278,9 @@ export async function fetchLesson(
     GRAPHQL_ENDPOINT,
     {
       query: `
-      query {
+      query FetchLesson($lessonId: String!){
         me {
-          lesson(lessonId: "${lessonId}") {
+          lesson(lessonId: $lessonId) {
             lessonId
             intro
             name
@@ -277,16 +303,16 @@ export async function fetchLesson(
         }
       }
     `,
+      variables: { lessonId },
     },
     { headers: headers }
   );
-  // TODO: must handle errors including in tests
-  return result.data.data!.me.lesson;
+  return findOrThrow<FetchLesson>(result).me.lesson;
 }
 
 export async function updateLesson(
   lessonId: string,
-  lesson: string,
+  lesson: Lesson,
   accessToken: string
 ): Promise<Lesson> {
   const headers = { Authorization: `bearer ${accessToken}` };
@@ -294,9 +320,9 @@ export async function updateLesson(
     GRAPHQL_ENDPOINT,
     {
       query: `
-      mutation {
+      mutation UpdateLesson($lessonId: String!, $lesson: UpdateLessonInputType!) {
         me {
-          updateLesson(lessonId: "${lessonId}", lesson: "${lesson}"){
+          updateLesson(lessonId: $lessonId, lesson: $lesson){
             lessonId
             intro
             name
@@ -318,12 +344,27 @@ export async function updateLesson(
           }
         }
       }
-    `,
+      `,
+      variables: {
+        lessonId,
+        lesson: {
+          lessonId: lesson.lessonId,
+          name: lesson.name,
+          intro: lesson.intro,
+          question: lesson.question,
+          image: lesson.image,
+          expectations: lesson.expectations,
+          conclusion: lesson.conclusion,
+          lastTrainedAt: lesson.lastTrainedAt,
+          features: lesson.features,
+          createdBy: lesson.createdBy,
+          deleted: lesson.deleted,
+        },
+      },
     },
     { headers: headers }
   );
-  // TODO: must handle errors including in tests
-  return result.data.data!.me.updateLesson;
+  return findOrThrow<UpdateLesson>(result).me.updateLesson;
 }
 
 export async function deleteLesson(
@@ -335,19 +376,21 @@ export async function deleteLesson(
     GRAPHQL_ENDPOINT,
     {
       query: `
-      mutation {
+      mutation DeleteLesson($lessonId: String!) {
         me {
-          deleteLesson(lessonId: "${lessonId}"){
+          deleteLesson(lessonId: $lessonId){
             deleted
           }  
         }
       }
-    `,
+      `,
+      variables: {
+        lessonId,
+      },
     },
     { headers: headers }
   );
-  // TODO: must handle errors including in tests
-  return result.data.data!.me.deleteLesson;
+  return findOrThrow<DeleteLesson>(result).me.deleteLesson;
 }
 
 export async function deleteSession(
@@ -359,29 +402,29 @@ export async function deleteSession(
     GRAPHQL_ENDPOINT,
     {
       query: `
-        mutation {
-          me {
-            deleteSession(sessionId: "${sessionId}"){
-              deleted
-            }  
-          }
+      mutation DeleteSession {
+        me {
+          deleteSession(sessionId: $sessionId){
+            deleted
+          }  
         }
+      }
       `,
+      variables: { sessionId },
     },
     { headers: headers }
   );
-  // TODO: must handle errors including in tests
-  return result.data.data!.me.deleteSession;
+  return findOrThrow<DeleteSession>(result).me.deleteSession;
 }
 
 export async function trainLesson(lessonId: string): Promise<TrainJob> {
-  const res = await axios.post<GQLResponse<TrainJob>>(
+  const result = await axios.post<GQLResponse<TrainJob>>(
     urljoin(CLASSIFIER_ENTRYPOINT, "train"),
     {
       lesson: lessonId,
     }
   );
-  return res.data.data!;
+  return findOrThrow<TrainJob>(result);
 }
 
 export async function trainDefault() : Promise<TrainDefaultJob> {
@@ -396,10 +439,11 @@ export async function fetchTrainingStatus(
   statusUrl: string
 ): Promise<TrainStatus> {
   const result = await axios.get<GQLResponse<TrainStatus>>(statusUrl);
-  return result.data.data!;
+  return findOrThrow<TrainStatus>(result);
 }
 
 export async function fetchUsers(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
   filter: any,
   limit: number,
   cursor: string,
@@ -412,14 +456,14 @@ export async function fetchUsers(
     GRAPHQL_ENDPOINT,
     {
       query: `
-      query {
+      query FetchUsers ($filter: String!, $limit: Int!, $cursor: String!, $sortBy: String!, $sortAscending: Boolean!) {
         me {
           users(
-            filter:"${encodeURI(JSON.stringify(filter))}"
-            limit:${limit},
-            cursor:"${cursor}",
-            sortBy:"${sortBy}",
-            sortAscending:${sortAscending}
+            filter: $filter,
+            limit: $limit,
+            cursor: $cursor,
+            sortBy: $sortBy,
+            sortAscending: $sortAscending
           ) {
             edges {
               cursor
@@ -440,11 +484,17 @@ export async function fetchUsers(
         }
       }
     `,
+      variables: {
+        filter: JSON.stringify(filter),
+        limit,
+        cursor,
+        sortBy,
+        sortAscending,
+      },
     },
-    { headers: headers }
+    { headers }
   );
-  // TODO: must handle errors including in tests
-  return result.data.data!.me.users;
+  return findOrThrow<FetchUsers>(result).me.users;
 }
 
 export async function updateUserPermissions(
@@ -474,15 +524,14 @@ export async function updateUserPermissions(
     },
     { headers: headers }
   );
-  // TODO: must handle errors including in tests
-  return result.data.data!.me.updateUserPermissions;
+  return findOrThrow<UpdateUserPermissions>(result).me.updateUserPermissions;
 }
 
 export async function login(accessToken: string): Promise<UserAccessToken> {
   const result = await axios.post<GQLResponse<Login>>(GRAPHQL_ENDPOINT, {
     query: `
-      mutation {
-        login(accessToken: "${accessToken}") {
+      mutation Login($accessToken: String!) {
+        login(accessToken: $accessToken) {
           user {
             id
             name
@@ -492,8 +541,9 @@ export async function login(accessToken: string): Promise<UserAccessToken> {
         }
       }
     `,
+    variables: { accessToken },
   });
-  return result.data.data!.login;
+  return findOrThrow<Login>(result).login;
 }
 
 export async function loginGoogle(
@@ -501,8 +551,8 @@ export async function loginGoogle(
 ): Promise<UserAccessToken> {
   const result = await axios.post<GQLResponse<LoginGoogle>>(GRAPHQL_ENDPOINT, {
     query: `
-      mutation {
-        loginGoogle(accessToken: "${accessToken}") {
+      mutation LoginGoogle($accessToken: String!) {
+        loginGoogle(accessToken: $accessToken) {
           user {
             id
             name
@@ -512,25 +562,26 @@ export async function loginGoogle(
         }
       }
     `,
+    variables: { accessToken },
   });
-  return result.data.data!.loginGoogle;
+  return findOrThrow<LoginGoogle>(result).loginGoogle;
 }
 
 export function userCanEdit(
   lesson: Lesson | undefined,
   user: User | undefined
-) {
-  return (
+): boolean {
+  return Boolean(
     lesson &&
-    user &&
-    (`${lesson.createdBy}` === `${user.id}` || userIsElevated(user))
+      user &&
+      (`${lesson.createdBy}` === `${user.id}` || userIsElevated(user))
   );
 }
 
-export function userIsElevated(user: User | undefined) {
-  return (
+export function userIsElevated(user: User | undefined): boolean {
+  return Boolean(
     user &&
-    (user.userRole === UserRole.ADMIN ||
-      user.userRole === UserRole.CONTENT_MANAGER)
+      (user.userRole === UserRole.ADMIN ||
+        user.userRole === UserRole.CONTENT_MANAGER)
   );
 }

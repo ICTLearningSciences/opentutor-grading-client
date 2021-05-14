@@ -16,7 +16,7 @@ import UsersPage from "pages/users/index";
 import "styles/layout.css";
 import TrainDefaultPage from "./train_default";
 
-const IndexPage: React.FC = (props: any) => {
+function IndexPage(props: { location: Location }): JSX.Element {
   return (
     <Router>
       <LoginMenu path={withPrefix("/")}>
@@ -31,6 +31,6 @@ const IndexPage: React.FC = (props: any) => {
       </LoginMenu>
     </Router>
   );
-};
+}
 
 export default IndexPage;
